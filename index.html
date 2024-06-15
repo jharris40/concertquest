@@ -3,32 +3,181 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Concert Quest</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Street Runner Game</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #87CEEB; /* Sky blue background */
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        canvas {
+            background: linear-gradient(#87CEEB, #228B22) no-repeat; /* Sky to grass gradient */
+            background-size: cover;
+            border: 2px solid #555;
+            display: block;
+        }
+
+        @keyframes streetScroll {
+            0% { background-position-x: 0; }
+            100% { background-position-x: -1600px; }
+        }
+
+        .street {
+            position: absolute;
+            bottom: 50px;
+            width: 100%;
+            height: 50px;
+            background: #505050 url('https://i.imgur.com/fzChq3P.png') repeat-x; /* Street texture */
+            animation: streetScroll 3s linear infinite;
+        }
+    </style>
 </head>
 <body>
-    <div id="game">
-        <div id="level1" class="level">
-            <h2>Level 1: Find the Ticket</h2>
-            <p>Click on the ticket to proceed to the next level.</p>
-            <img id="ticket" src="ticket.png" alt="Ticket">
-        </div>
-        <div id="level2" class="level">
-            <h2>Level 2: Navigate the Maze</h2>
-            <p>Guide the kid through the maze to reach the exit.</p>
-            <div id="maze"></div>
-        </div>
-        <div id="level3" class="level">
-            <h2>Level 3: Avoid Obstacles</h2>
-            <p>Reach the concert while avoiding obstacles.</p>
-            <canvas id="obstacleGame" width="800" height="400"></canvas>
-        </div>
-        <div id="win" class="level">
-            <h2>Congratulations!</h2>
-            <p>You made it to the concert!</p>
-        </div>
-    </div>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <div class="street"></div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const context = canvas.getContext('2d');
 
-    <script src="game.js"></script>
+        const player = {
+            x: 50,
+            y: canvas.height - 150, // Starting Y position
+            width: 50,
+            height: 50,
+            speed: 6,
+            dy: 0,
+            gravity: 0.5,
+            jumpPower: -12,
+            onGround: true,
+        };
+
+        const obstacleWidth = 50;
+        const obstacleHeight = 50;
+        const initialObstacleSpeed = 6;
+
+        let obstacles = [];
+        let obstacleSpeed = initialObstacleSpeed;
+        let obstacleFrequency = 1500;
+        let points = 0;
+        let gameOver = false;
+        let gameWin = false;
+        let backgroundOffset = 0;
+
+        function createObstacle() {
+            obstacles.push({ x: canvas.width, y: canvas.height - 100 });
+        }
+
+        function movePlayer() {
+            player.y += player.dy;
+            player.dy += player.gravity;
+
+            if (player.y + player.height >= canvas.height - 50) {
+                player.y = canvas.height - player.height - 50;
+                player.onGround = true;
+                player.dy = 0;
+            }
+        }
+
+        function drawPlayer() {
+            context.fillStyle = 'blue';
+            context.fillRect(player.x, player.y, player.width, player.height);
+        }
+
+        function drawObstacles() {
+            context.fillStyle = 'red';
+            obstacles.forEach(obstacle => {
+                context.fillRect(obstacle.x, obstacle.y, obstacleWidth, obstacleHeight);
+            });
+        }
+
+        function updateObstacles() {
+            obstacles.forEach(obstacle => {
+                obstacle.x -= obstacleSpeed;
+            });
+
+            obstacles = obstacles.filter(obstacle => obstacle.x + obstacleWidth > 0);
+        }
+
+        function detectCollision() {
+            obstacles.forEach(obstacle => {
+                if (
+                    player.x < obstacle.x + obstacleWidth &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacleHeight &&
+                    player.y + player.height > obstacle.y
+                ) {
+                    gameOver = true;
+                }
+            });
+        }
+
+        function updateGameSpeed() {
+            if (points % 1000 === 0 && points > 0) {
+                obstacleSpeed += 2;
+            }
+        }
+
+        function updateScore() {
+            points += 10;
+            if (points >= 10000) {
+                gameWin = true;
+                gameOver = true;
+            }
+        }
+
+        function drawScore() {
+            context.fillStyle = 'white';
+            context.font = '20px Arial';
+            context.fillText(`Points: ${points}`, 20, 30);
+        }
+
+        function gameLoop() {
+            if (gameOver) {
+                context.fillStyle = 'white';
+                context.font = '40px Arial';
+                context.textAlign = 'center';
+                context.fillText(gameWin ? 'You Win!' : 'Game Over', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            backgroundOffset -= obstacleSpeed;
+            canvas.style.backgroundPositionX = backgroundOffset + 'px';
+            movePlayer();
+            drawPlayer();
+            updateObstacles();
+            drawObstacles();
+            detectCollision();
+            updateGameSpeed();
+            drawScore();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            setInterval(() => {
+                if (!gameOver) {
+                    createObstacle();
+                    updateScore();
+                }
+            }, obstacleFrequency);
+
+            gameLoop();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && player.onGround) {
+                player.dy = player.jumpPower;
+                player.onGround = false;
+            }
+        });
+
+        startGame();
+    </script>
 </body>
 </html>
